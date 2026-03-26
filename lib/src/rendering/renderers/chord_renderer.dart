@@ -204,7 +204,7 @@ class ChordRenderer extends BaseGlyphRenderer {
     int stackLevel = 0;
     for (int i = 0; i < noteIndex; i++) {
       if (allNotes[i].pitch.accidentalGlyph != null) {
-        if ((positions[noteIndex] - positions[i]).abs() <= 1) {
+        if ((positions[noteIndex] - positions[i]).abs() <= 6) {
           stackLevel++;
         }
       }
@@ -212,7 +212,7 @@ class ChordRenderer extends BaseGlyphRenderer {
 
     // Borda ESQUERDA do acidente posicionada com clearance correto
     // (sem centerHorizontally: a posição é a borda esquerda do glifo)
-    final accidentalX = notePos.dx - baseOffset - (stackLevel * coordinates.staffSpace * 0.6);
+    final accidentalX = notePos.dx - baseOffset - (stackLevel * coordinates.staffSpace * 1.4);
 
     drawGlyphWithBBox(
       canvas,
