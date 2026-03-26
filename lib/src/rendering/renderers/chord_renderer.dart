@@ -62,15 +62,16 @@ class ChordRenderer extends BaseGlyphRenderer {
     final stemUp = _getStemDirection(chord, positions, voiceNumber);
 
     final Map<int, double> xOffsets = {};
-    // CORREÇÃO TIPOGRÁFICA: Usar largura real da cabeça de nota para offset
-    final noteheadInfo = metadata.getGlyphInfo('noteheadBlack');
+    // Use the actual notehead glyph width for offset calculation
+    final actualGlyph = chord.duration.type.glyphName;
+    final noteheadInfo = metadata.getGlyphInfo(actualGlyph) ??
+        metadata.getGlyphInfo('noteheadBlack');
     final noteWidth = noteheadInfo?.boundingBox?.width ?? 1.18;
 
     for (int i = 0; i < sortedNotes.length; i++) {
       xOffsets[i] = 0.0;
       if (i > 0 && (positions[i - 1] - positions[i]).abs() <= 1) {
         if (xOffsets[i - 1] == 0.0) {
-          // Offset baseado na largura real da nota do metadata SMuFL
           xOffsets[i] = !stemUp
               ? -(noteWidth * coordinates.staffSpace)
               : (noteWidth * coordinates.staffSpace);
