@@ -68,13 +68,18 @@ class ChordRenderer extends BaseGlyphRenderer {
         metadata.getGlyphInfo('noteheadBlack');
     final noteWidth = noteheadInfo?.boundingBox?.width ?? 1.18;
 
+    // For whole notes (no stem), always offset to the right so adjacent
+    // noteheads don't collide with accidentals on the left side.
+    final isWhole = chord.duration.type == DurationType.whole;
+    final offsetRight = isWhole || stemUp;
+
     for (int i = 0; i < sortedNotes.length; i++) {
       xOffsets[i] = 0.0;
       if (i > 0 && (positions[i - 1] - positions[i]).abs() <= 1) {
         if (xOffsets[i - 1] == 0.0) {
-          xOffsets[i] = !stemUp
-              ? -(noteWidth * coordinates.staffSpace)
-              : (noteWidth * coordinates.staffSpace);
+          xOffsets[i] = offsetRight
+              ? (noteWidth * coordinates.staffSpace)
+              : -(noteWidth * coordinates.staffSpace);
         }
       }
     }
