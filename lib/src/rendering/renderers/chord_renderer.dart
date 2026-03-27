@@ -236,9 +236,6 @@ class ChordRenderer extends BaseGlyphRenderer {
     }
     _accidentalColumns[noteIndex] = column;
 
-    // ignore: avoid_print
-    print('ACCIDENTAL noteIndex=$noteIndex pos=${positions[noteIndex]} column=$column glyph=$accidentalGlyph');
-
     final accidentalX = notePos.dx - baseOffset - (column * coordinates.staffSpace * 1.2);
 
     drawGlyphWithBBox(

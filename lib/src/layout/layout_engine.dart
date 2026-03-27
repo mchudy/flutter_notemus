@@ -117,21 +117,15 @@ class LayoutCursor {
       _currentClef = element;
     }
 
-    // ✅ SUPORTE A ACORDES: Expandir notas do acorde em elementos separados
+    // Keep Chord as a single element so ChordRenderer handles notehead
+    // offsets and accidental collision avoidance as a unit.
     if (element is Chord && _currentClef != null) {
-      for (final note in element.notes) {
-        final staffPosition = StaffPositionCalculator.calculate(note.pitch, _currentClef!);
-        final noteY = StaffPositionCalculator.toPixelY(staffPosition, staffSpace, _currentY);
-        noteXPositions?[note] = _currentX;
-        noteStaffPositions?[note] = staffPosition;
-        noteYPositions?[note] = noteY;
-        elements.add(PositionedElement(
-          note,
-          Offset(_currentX, noteY),
-          system: _currentSystem,
-          voiceNumber: voiceNumber,
-        ));
-      }
+      elements.add(PositionedElement(
+        element,
+        Offset(_currentX, _currentY),
+        system: _currentSystem,
+        voiceNumber: voiceNumber,
+      ));
       return;
     }
 
