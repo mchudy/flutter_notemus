@@ -158,16 +158,16 @@ class ChordRenderer extends BaseGlyphRenderer {
       );
       final xOffset = xOffsets[i]!;
 
-      _drawLedgerLines(canvas, basePosition.dx + xOffset, staffPos);
+      // Center ledger lines on the notehead's visual center, not its
+      // left edge. The notehead width / 2 gives the horizontal center.
+      final noteheadCenterX = basePosition.dx + xOffset +
+          (noteWidth * coordinates.staffSpace * 0.5);
+      _drawLedgerLines(canvas, noteheadCenterX, staffPos);
 
-      // Shift noteheads up slightly to center them on staff lines.
-      // The Bravura font's reported metrics cause drawGlyphWithBBox to
-      // place noteheads ~0.15 staff spaces too low.
-      final correctedNoteY = noteY - coordinates.staffSpace * 0.15;
       drawGlyphWithBBox(
         canvas,
         glyphName: note.duration.type.glyphName,
-        position: Offset(basePosition.dx + xOffset, correctedNoteY),
+        position: Offset(basePosition.dx + xOffset, noteY),
         color: theme.noteheadColor,
         options: GlyphDrawOptions.noteheadDefault,
       );
