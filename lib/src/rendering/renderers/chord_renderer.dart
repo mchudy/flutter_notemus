@@ -236,7 +236,10 @@ class ChordRenderer extends BaseGlyphRenderer {
     }
     _accidentalColumns[noteIndex] = column;
 
-    final accidentalX = notePos.dx - baseOffset - (column * coordinates.staffSpace * 1.2);
+    // Space columns by the full accidental width + clearance so they
+    // never overlap horizontally.
+    final columnSpacing = (accidentalWidth + clearance) * coordinates.staffSpace;
+    final accidentalX = notePos.dx - baseOffset - (column * columnSpacing);
 
     drawGlyphWithBBox(
       canvas,
