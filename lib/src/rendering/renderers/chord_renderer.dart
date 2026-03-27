@@ -23,6 +23,9 @@ class ChordRenderer extends BaseGlyphRenderer {
   final double stemThickness;
   final NoteRenderer noteRenderer;
 
+  // Tracks which horizontal column each accidental was placed in during render.
+  final Map<int, int> _accidentalColumns = {};
+
   // ignore: use_super_parameters
   ChordRenderer({
     required StaffCoordinateSystem coordinates,
@@ -45,7 +48,8 @@ class ChordRenderer extends BaseGlyphRenderer {
     Clef currentClef, {
     int? voiceNumber,
   }) {
-    // MELHORIA: Usar StaffPositionCalculator unificado
+    _accidentalColumns.clear();
+
     final sortedNotes = [...chord.notes]
       ..sort(
         (a, b) => StaffPositionCalculator.calculate(
@@ -206,19 +210,33 @@ class ChordRenderer extends BaseGlyphRenderer {
     const clearance = 0.16;
     final baseOffset = (accidentalWidth + clearance) * coordinates.staffSpace;
 
-    // Escalonamento horizontal para acidentes em notas adjacentes (intervalo de 2ª)
-    int stackLevel = 0;
-    for (int i = 0; i < noteIndex; i++) {
-      if (allNotes[i].pitch.accidentalGlyph != null) {
-        if ((positions[noteIndex] - positions[i]).abs() <= 6) {
-          stackLevel++;
+    // Determine horizontal column for this accidental using a collision-aware
+    // approach. Accidental glyphs are ~3 staff positions tall, so two
+    // accidentals collide vertically if they are within 3 positions of each
+    // other. We find the leftmost column where no collision occurs.
+    //
+    // _accidentalColumns tracks (staffPosition, column) for placed accidentals.
+    int column = 0;
+    for (int c = 0; c < allNotes.length; c++) {
+      bool collision = false;
+      for (int i = 0; i < noteIndex; i++) {
+        if (allNotes[i].pitch.accidentalGlyph != null) {
+          final iColumn = _accidentalColumns[i] ?? 0;
+          if (iColumn == c && (positions[noteIndex] - positions[i]).abs() <= 3) {
+            collision = true;
+            break;
+          }
         }
       }
+      if (!collision) {
+        column = c;
+        break;
+      }
+      column = c + 1;
     }
+    _accidentalColumns[noteIndex] = column;
 
-    // Borda ESQUERDA do acidente posicionada com clearance correto
-    // (sem centerHorizontally: a posição é a borda esquerda do glifo)
-    final accidentalX = notePos.dx - baseOffset - (stackLevel * coordinates.staffSpace * 1.4);
+    final accidentalX = notePos.dx - baseOffset - (column * coordinates.staffSpace * 1.2);
 
     drawGlyphWithBBox(
       canvas,
