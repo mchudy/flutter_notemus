@@ -230,7 +230,10 @@ class ChordRenderer extends BaseGlyphRenderer {
       ..color = theme.staffLineColor
       ..strokeWidth = staffLineThickness;
 
-    final halfWidth = coordinates.staffSpace * 0.7;
+    // Ledger lines must extend beyond the notehead on both sides.
+    // Whole notes are ~1.7 staffSpaces wide, so half-width needs to be
+    // at least 1.0 to be visible beyond the notehead edges.
+    final halfWidth = coordinates.staffSpace * 1.1;
 
     for (final linePos in ledgerPositions) {
       final y = StaffPositionCalculator.toPixelY(
