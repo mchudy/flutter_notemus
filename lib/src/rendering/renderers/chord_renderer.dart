@@ -74,9 +74,10 @@ class ChordRenderer extends BaseGlyphRenderer {
       xOffsets[i] = 0.0;
       if (i > 0 && (positions[i - 1] - positions[i]).abs() <= 1) {
         if (xOffsets[i - 1] == 0.0) {
-          xOffsets[i] = offsetRight
-              ? (noteWidth * coordinates.staffSpace)
-              : -(noteWidth * coordinates.staffSpace);
+          // Use ~80% of notehead width so adjacent notes touch/overlap
+          // slightly, matching standard engraving practice.
+          final offset = noteWidth * 0.8 * coordinates.staffSpace;
+          xOffsets[i] = offsetRight ? offset : -offset;
         }
       }
     }
