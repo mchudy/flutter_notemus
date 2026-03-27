@@ -258,9 +258,9 @@ class ChordRenderer extends BaseGlyphRenderer {
 
     double stemX;
     if (stemUp) {
-      final stemUpSE = anchors?.stemUpSE;
-      if (stemUpSE != null) {
-        stemX = notePosition.dx + (stemUpSE.dx * coordinates.staffSpace);
+      final anchor = anchors?.getAnchor('stemUpSE');
+      if (anchor != null) {
+        stemX = notePosition.dx + (anchor.dx * coordinates.staffSpace);
       } else {
         final noteheadWidth = metadata.getGlyphWidthInPixels(
           noteheadGlyph,
@@ -269,9 +269,9 @@ class ChordRenderer extends BaseGlyphRenderer {
         stemX = notePosition.dx + noteheadWidth;
       }
     } else {
-      final stemDownNW = anchors?.stemDownNW;
-      if (stemDownNW != null) {
-        stemX = notePosition.dx + (stemDownNW.dx * coordinates.staffSpace);
+      final anchor = anchors?.getAnchor('stemDownNW');
+      if (anchor != null) {
+        stemX = notePosition.dx + (anchor.dx * coordinates.staffSpace);
       } else {
         stemX = notePosition.dx;
       }
