@@ -113,6 +113,7 @@ class ChordRenderer extends BaseGlyphRenderer {
           i,
           sortedNotes,
           positions,
+          xOffsets,
         );
       }
 
@@ -200,6 +201,7 @@ class ChordRenderer extends BaseGlyphRenderer {
     int noteIndex,
     List<Note> allNotes,
     List<int> positions,
+    Map<int, double> xOffsets,
   ) {
     final accidentalGlyph = note.pitch.accidentalGlyph!;
 
@@ -210,24 +212,48 @@ class ChordRenderer extends BaseGlyphRenderer {
     const clearance = 0.16;
     final baseOffset = (accidentalWidth + clearance) * coordinates.staffSpace;
 
-    // Determine horizontal column for this accidental. Flat glyphs extend
-    // ~5 staff positions vertically, so accidentals within 5 positions of
-    // each other must go in separate columns. We find the nearest column
-    // (closest to noteheads) where no vertical collision occurs.
-    const collisionDistance = 5;
+    // Determine horizontal column for this accidental.
+    //
+    // Accidental glyphs (especially flats) extend ~2.5 staff spaces above
+    // their note position, which is ~6 staff half-positions. Two accidentals
+    // must be in separate columns if they are within this distance, and
+    // accidentals must also not overlap with noteheads of other notes in
+    // column 0. We check both accidental-accidental and accidental-notehead
+    // collisions.
+    const accidentalCollisionDistance = 6;
+    const noteheadCollisionDistance = 3;
+
     int column = 0;
     for (int c = 0; c < allNotes.length; c++) {
       bool collision = false;
-      for (int i = 0; i < noteIndex; i++) {
-        if (allNotes[i].pitch.accidentalGlyph != null) {
+
+      for (int i = 0; i < allNotes.length; i++) {
+        if (i == noteIndex) continue;
+
+        // Check accidental-accidental collision in same column.
+        if (i < noteIndex && allNotes[i].pitch.accidentalGlyph != null) {
           final iColumn = _accidentalColumns[i] ?? 0;
           if (iColumn == c &&
-              (positions[noteIndex] - positions[i]).abs() < collisionDistance) {
+              (positions[noteIndex] - positions[i]).abs() <=
+                  accidentalCollisionDistance) {
+            collision = true;
+            break;
+          }
+        }
+
+        // In column 0, check if this accidental would overlap a notehead.
+        if (c == 0 &&
+            (positions[noteIndex] - positions[i]).abs() <=
+                noteheadCollisionDistance) {
+          // Only collides if the notehead has no offset (is in the default
+          // position). Offset noteheads are moved right and won't collide.
+          if (xOffsets[i] == 0.0) {
             collision = true;
             break;
           }
         }
       }
+
       if (!collision) {
         column = c;
         break;
@@ -236,9 +262,9 @@ class ChordRenderer extends BaseGlyphRenderer {
     }
     _accidentalColumns[noteIndex] = column;
 
-    // Space columns by the full accidental width + clearance so they
-    // never overlap horizontally.
-    final columnSpacing = (accidentalWidth + clearance) * coordinates.staffSpace;
+    // Space columns by the full accidental width + extra clearance.
+    final columnSpacing =
+        (accidentalWidth + clearance * 2) * coordinates.staffSpace;
     final accidentalX = notePos.dx - baseOffset - (column * columnSpacing);
 
     drawGlyphWithBBox(
