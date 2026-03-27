@@ -210,19 +210,19 @@ class ChordRenderer extends BaseGlyphRenderer {
     const clearance = 0.16;
     final baseOffset = (accidentalWidth + clearance) * coordinates.staffSpace;
 
-    // Determine horizontal column for this accidental using a collision-aware
-    // approach. Accidental glyphs are ~3 staff positions tall, so two
-    // accidentals collide vertically if they are within 3 positions of each
-    // other. We find the leftmost column where no collision occurs.
-    //
-    // _accidentalColumns tracks (staffPosition, column) for placed accidentals.
+    // Determine horizontal column for this accidental. Flat glyphs extend
+    // ~5 staff positions vertically, so accidentals within 5 positions of
+    // each other must go in separate columns. We find the nearest column
+    // (closest to noteheads) where no vertical collision occurs.
+    const collisionDistance = 5;
     int column = 0;
     for (int c = 0; c < allNotes.length; c++) {
       bool collision = false;
       for (int i = 0; i < noteIndex; i++) {
         if (allNotes[i].pitch.accidentalGlyph != null) {
           final iColumn = _accidentalColumns[i] ?? 0;
-          if (iColumn == c && (positions[noteIndex] - positions[i]).abs() <= 3) {
+          if (iColumn == c &&
+              (positions[noteIndex] - positions[i]).abs() < collisionDistance) {
             collision = true;
             break;
           }
