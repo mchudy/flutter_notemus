@@ -196,12 +196,18 @@ abstract class BaseGlyphRenderer {
       // EXCEÇÃO: Noteheads NÃO devem receber essa correção pois precisam alinhar
       // exatamente com linhas suplementares!
       double baselineCorrection = 0.0;
-      if (!options.centerVertically && !options.alignTop && !options.alignBottom 
+      if (!options.centerVertically && !options.alignTop && !options.alignBottom
           && !options.disableBaselineCorrection) {
-        // Apenas aplicar correção se não estamos usando nenhum alinhamento vertical
-        // E se a correção não foi explicitamente desabilitada
-        // NO FLUTTER: Y+ = BAIXO, então SUBTRAÍMOS para fazer o glifo SUBIR
-        baselineCorrection = -textPainter.height * 0.5;
+        // Place the font's alphabetic baseline at the target Y coordinate.
+        // In SMuFL fonts (Bravura), the glyph origin sits on the baseline,
+        // which corresponds to the staff line position.
+        // TextPainter.paint() draws from the top-left, so we subtract the
+        // ascent (distance from top to baseline) to align the baseline with
+        // the target Y.
+        final baseline = textPainter.computeDistanceToActualBaseline(
+          TextBaseline.alphabetic,
+        );
+        baselineCorrection = -(baseline ?? textPainter.height * 0.5);
       }
       
       final correctedY = finalY + baselineCorrection;
