@@ -165,7 +165,10 @@ class ChordRenderer extends BaseGlyphRenderer {
         glyphName: note.duration.type.glyphName,
         position: Offset(basePosition.dx + xOffset, noteY),
         color: theme.noteheadColor,
-        options: GlyphDrawOptions.noteheadDefault,
+        options: const GlyphDrawOptions(
+          centerVertically: true,
+          trackBounds: true,
+        ),
       );
     }
 
