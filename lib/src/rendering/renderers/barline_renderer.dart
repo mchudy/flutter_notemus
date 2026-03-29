@@ -1,32 +1,21 @@
-// lib/src/rendering/renderers/barline_renderer.dart
-
 import 'package:flutter/painting.dart';
 
 import '../../../core/core.dart';
 import '../../smufl/smufl_metadata_loader.dart';
 import '../../theme/music_score_theme.dart';
 import '../staff_coordinate_system.dart';
-import 'glyph_renderer.dart'; // 🎵 Para renderizar glyphs SMuFL
+import 'glyph_renderer.dart';
 
-/// ✨ USA GLYPHS SMuFL OFICIAIS DA FONTE BRAVURA!
-/// Ajustes manuais disponíveis através de constantes abaixo
+/// Renders barlines by drawing directly on the canvas.
+///
+/// Uses canvas draw operations instead of font glyphs to ensure barlines
+/// align pixel-perfectly with staff lines at all staff space sizes.
 class BarlineRenderer {
-  // 🎚️ CONSTANTES DE AJUSTE MANUAL
-  // Ajuste o tamanho vertical das barlines (multiplicador de staff spaces)
-  static const double barlineHeightMultiplier =
-      4.0; // Padrão: 4 SS exatos (linha 1 a 5)
-
-  // Ajuste Y offset (em staff spaces) - positivo = para baixo, negativo = para cima
-  // ⚠️ IMPORTANTE: -2.0 é o valor CORRETO!
-  // Glyphs SMuFL têm origem (0,0) na BASELINE TIPOGRÁFICA (canto inferior esquerdo)
-  // barlineSingle tem altura de 4.0 SS (metadata: bBoxNE=[0.144, 4.0], bBoxSW=[0.0, 0.0])
-  // Sistema de coordenadas do pentagrama é centrado na linha 3
-  // Offset -2.0 posiciona a baseline do glyph na linha 5 (Y:-2)
-  // Fazendo o topo do glyph (baseline + 4.0) ficar na linha 1 (Y:+2)
+  // Keep legacy constants for API compatibility.
+  static const double barlineHeightMultiplier = 4.0;
   static const double barlineYOffset = -2.0;
+  static const double barlineXOffset = 0.0;
 
-  // Ajuste X offset (em staff spaces) - positivo = direita, negativo = esquerda
-  static const double barlineXOffset = 0.0; // Padrão: sem offset
   final StaffCoordinateSystem coordinates;
   final SmuflMetadata metadata;
   final MusicScoreTheme theme;
@@ -41,61 +30,137 @@ class BarlineRenderer {
     required this.glyphSize,
   });
 
-  /// 🎵 Renderiza barline usando glyph SMuFL da fonte Bravura
-  /// Ajuste as constantes acima para calibrar o posicionamento
   void render(Canvas canvas, Barline barline, Offset position) {
-    final glyphName = _getGlyphName(barline.type);
+    if (barline.type == BarlineType.none) return;
 
-    // Calcular posição com offsets ajustáveis
-    final topY =
-        coordinates.getStaffLineY(1) +
-        (barlineYOffset * coordinates.staffSpace);
-    final x = position.dx + (barlineXOffset * coordinates.staffSpace);
+    final topY = coordinates.getStaffLineY(5);
+    final bottomY = coordinates.getStaffLineY(1);
+    final x = position.dx;
 
-    // Altura ajustável
-    final barlineHeight = coordinates.staffSpace * barlineHeightMultiplier;
+    final thin =
+        metadata.getEngravingDefault('thinBarlineThickness') *
+        coordinates.staffSpace;
+    final thick =
+        metadata.getEngravingDefault('thickBarlineThickness') *
+        coordinates.staffSpace;
+    final separation = coordinates.staffSpace * 0.4;
 
-    final renderPosition = Offset(x, topY);
-
-    // Renderizar glyph SMuFL oficial da Bravura!
-    glyphRenderer.drawGlyph(
-      canvas,
-      glyphName: glyphName,
-      position: renderPosition,
-      size: barlineHeight,
-      color: theme.barlineColor,
-      centerVertically: false,
-    );
-  }
-
-  /// Mapeia BarlineType para o nome do glyph SMuFL
-  String _getGlyphName(BarlineType type) {
-    switch (type) {
+    switch (barline.type) {
       case BarlineType.single:
-        return 'barlineSingle';
+        _drawLine(canvas, x, topY, bottomY, thin);
       case BarlineType.double:
-        return 'barlineDouble';
+      case BarlineType.lightLight:
+        _drawLine(canvas, x, topY, bottomY, thin);
+        _drawLine(canvas, x + thin + separation, topY, bottomY, thin);
       case BarlineType.final_:
-        return 'barlineFinal';
-      case BarlineType.repeatForward:
-        return 'repeatLeft'; // :|| (pontos à esquerda)
-      case BarlineType.repeatBackward:
-        return 'repeatRight'; // ||: (pontos à direita)
-      case BarlineType.repeatBoth:
-        return 'repeatLeftRight'; // :||: (pontos em ambos os lados)
-      case BarlineType.dashed:
-        return 'barlineDashed';
+      case BarlineType.lightHeavy:
+        _drawLine(canvas, x, topY, bottomY, thin);
+        _drawLine(canvas, x + thin + separation, topY, bottomY, thick);
+      case BarlineType.heavyLight:
+        _drawLine(canvas, x, topY, bottomY, thick);
+        _drawLine(canvas, x + thick + separation, topY, bottomY, thin);
+      case BarlineType.heavyHeavy:
+        _drawLine(canvas, x, topY, bottomY, thick);
+        _drawLine(canvas, x + thick + separation, topY, bottomY, thick);
       case BarlineType.heavy:
-        return 'barlineHeavy';
+        _drawLine(canvas, x, topY, bottomY, thick);
+      case BarlineType.dashed:
+        _drawDashedLine(canvas, x, topY, bottomY, thin);
+      case BarlineType.repeatForward:
+        _drawLine(canvas, x, topY, bottomY, thick);
+        _drawLine(canvas, x + thick + separation, topY, bottomY, thin);
+        _drawRepeatDots(
+          canvas,
+          x + thick + separation + thin + separation,
+        );
+      case BarlineType.repeatBackward:
+        final dotsWidth = coordinates.staffSpace * 0.6;
+        _drawRepeatDots(canvas, x);
+        _drawLine(canvas, x + dotsWidth + separation, topY, bottomY, thin);
+        _drawLine(
+          canvas,
+          x + dotsWidth + separation + thin + separation,
+          topY,
+          bottomY,
+          thick,
+        );
+      case BarlineType.repeatBoth:
+        final dotsWidth = coordinates.staffSpace * 0.6;
+        _drawRepeatDots(canvas, x);
+        _drawLine(canvas, x + dotsWidth + separation, topY, bottomY, thin);
+        _drawLine(
+          canvas,
+          x + dotsWidth + separation + thin + separation,
+          topY,
+          bottomY,
+          thick,
+        );
+        final afterThick =
+            x + dotsWidth + separation + thin + separation + thick;
+        _drawLine(canvas, afterThick + separation, topY, bottomY, thin);
+        _drawRepeatDots(canvas, afterThick + separation + thin + separation);
       case BarlineType.tick:
-        return 'barlineTick';
+        final tickBottom = topY + coordinates.staffSpace;
+        _drawLine(canvas, x, topY, tickBottom, thin);
       case BarlineType.short_:
-        return 'barlineShort';
-      default:
-        return 'barlineSingle';
+        final shortTop = coordinates.getStaffLineY(4);
+        final shortBottom = coordinates.getStaffLineY(2);
+        _drawLine(canvas, x, shortTop, shortBottom, thin);
+      case BarlineType.none:
+        break;
     }
   }
 
-  // ✨ TODO O CÓDIGO ANTERIOR FOI REMOVIDO!
-  // Agora usamos apenas glyphs SMuFL oficiais - muito mais simples!
+  void _drawLine(
+    Canvas canvas,
+    double x,
+    double topY,
+    double bottomY,
+    double width,
+  ) {
+    final paint = Paint()
+      ..color = theme.barlineColor
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(
+      Rect.fromLTWH(x - width / 2, topY, width, bottomY - topY),
+      paint,
+    );
+  }
+
+  void _drawDashedLine(
+    Canvas canvas,
+    double x,
+    double topY,
+    double bottomY,
+    double width,
+  ) {
+    final paint = Paint()
+      ..color = theme.barlineColor
+      ..style = PaintingStyle.fill;
+    final dashHeight = coordinates.staffSpace * 0.5;
+    final gapHeight = coordinates.staffSpace * 0.5;
+    var y = topY;
+    while (y < bottomY) {
+      final dashEnd = (y + dashHeight).clamp(y, bottomY);
+      canvas.drawRect(
+        Rect.fromLTWH(x - width / 2, y, width, dashEnd - y),
+        paint,
+      );
+      y += dashHeight + gapHeight;
+    }
+  }
+
+  void _drawRepeatDots(Canvas canvas, double x) {
+    final dotRadius = coordinates.staffSpace * 0.2;
+    final paint = Paint()
+      ..color = theme.barlineColor
+      ..style = PaintingStyle.fill;
+    // Dots in spaces 2 and 3 (between lines 2-3 and 3-4).
+    final space2Y =
+        (coordinates.getStaffLineY(2) + coordinates.getStaffLineY(3)) / 2;
+    final space3Y =
+        (coordinates.getStaffLineY(3) + coordinates.getStaffLineY(4)) / 2;
+    canvas.drawCircle(Offset(x + dotRadius, space2Y), dotRadius, paint);
+    canvas.drawCircle(Offset(x + dotRadius, space3Y), dotRadius, paint);
+  }
 }
