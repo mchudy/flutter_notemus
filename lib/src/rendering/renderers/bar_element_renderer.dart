@@ -170,33 +170,8 @@ class BarElementRenderer {
     TimeSignature ts,
     Offset basePosition,
   ) {
-    if (ts.numerator == 4 &&
-        ts.denominator == 4 &&
-        metadata.hasGlyph('timeSigCommon')) {
-      _drawGlyph(
-        canvas,
-        glyphName: 'timeSigCommon',
-        position: Offset(basePosition.dx, coordinates.staffBaseline.dy),
-        size: glyphSize,
-        color: theme.timeSignatureColor,
-        centerVertically: true,
-      );
-      return;
-    }
-    if (ts.numerator == 2 &&
-        ts.denominator == 2 &&
-        metadata.hasGlyph('timeSigCutCommon')) {
-      _drawGlyph(
-        canvas,
-        glyphName: 'timeSigCutCommon',
-        position: Offset(basePosition.dx, coordinates.staffBaseline.dy),
-        size: glyphSize,
-        color: theme.timeSignatureColor,
-        centerVertically: true,
-      );
-      return;
-    }
-
+    // Always render as numeric (e.g., 4/4) — never use common time (C) or
+    // cut time symbols, as numeric is clearer for ear training.
     _drawGlyph(
       canvas,
       glyphName: 'timeSig${ts.numerator}',
