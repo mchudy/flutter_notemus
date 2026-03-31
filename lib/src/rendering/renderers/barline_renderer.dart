@@ -33,8 +33,14 @@ class BarlineRenderer {
   void render(Canvas canvas, Barline barline, Offset position) {
     if (barline.type == BarlineType.none) return;
 
-    final topY = coordinates.getStaffLineY(5);
-    final bottomY = coordinates.getStaffLineY(1);
+    // Extend by half a staff line thickness so the barline rect fully covers
+    // the outermost staff lines (which are drawn with strokeWidth centered on
+    // their Y coordinate).
+    final staffLineThickness =
+        metadata.getEngravingDefault('staffLineThickness') *
+        coordinates.staffSpace;
+    final topY = coordinates.getStaffLineY(5) - staffLineThickness / 2;
+    final bottomY = coordinates.getStaffLineY(1) + staffLineThickness / 2;
     final x = position.dx;
 
     final thin =
