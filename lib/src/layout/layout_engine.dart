@@ -189,12 +189,18 @@ class LayoutEngine {
   // QUEBRA DE LINHA INTELIGENTE
   static const int measuresPerSystem = 4; // Compassos por linha
 
+  /// When true, the last system is also justified to fill the available width.
+  /// Header elements (clef, key signature, time signature) are kept at their
+  /// original positions; only musical content is stretched.
+  final bool justifyAllSystems;
+
   LayoutEngine(
     this.staff, {
     required this.availableWidth,
     this.staffSpace = 12.0,
     this.metadata,
     this.verboseValidation = false, // Silencioso por padrão
+    this.justifyAllSystems = false,
     spacing.SpacingPreferences? spacingPreferences,
   }) {
     // Inicializar motor de espaçamento
@@ -466,7 +472,11 @@ class LayoutEngine {
     }
   }
 
-  /// Justifica horizontalmente os compassos para preencher a largura disponível
+  /// Justifica horizontalmente os compassos para preencher a largura disponível.
+  ///
+  /// Quando [justifyAllSystems] é true, o último sistema também é justificado.
+  /// Elementos de cabeçalho (clave, armadura, fórmula de compasso) são mantidos
+  /// nas suas posições originais — apenas o conteúdo musical é esticado.
   void _justifyHorizontally(
     List<PositionedElement> elements,
     Map<int, List<int>> systemMeasures,
@@ -474,8 +484,7 @@ class LayoutEngine {
     if (systemMeasures.isEmpty) return;
 
     final usableWidth = availableWidth - (systemMargin * staffSpace * 2);
-    // Never justify the last system — standard engraving practice.
-    // Only full intermediate systems (those that break to the next line) are stretched.
+    // Standard engraving: never justify the last system, unless justifyAllSystems.
     final lastSystem = systemMeasures.keys.reduce((a, b) => a > b ? a : b);
 
     for (final entry in systemMeasures.entries) {
@@ -483,35 +492,55 @@ class LayoutEngine {
       final measures = entry.value;
 
       if (measures.isEmpty) continue;
-      if (system == lastSystem) continue;
+      if (system == lastSystem && !justifyAllSystems) continue;
 
-      // Encontrar X mínimo e máximo dos elementos neste sistema
+      // Find the start of musical content (first non-header element X).
+      // Header elements (clef, key sig, time sig, tempo mark) are kept fixed;
+      // only musical content is stretched to fill the available width.
+      double headerEndX = double.infinity;
       double minX = double.infinity;
       double maxX = 0;
 
       for (final positioned in elements) {
-        if (positioned.system == system) {
-          if (positioned.position.dx < minX) minX = positioned.position.dx;
-          if (positioned.position.dx > maxX) maxX = positioned.position.dx;
+        if (positioned.system != system) continue;
+        final x = positioned.position.dx;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        final el = positioned.element;
+        if (el is! Clef && el is! TimeSignature && el is! KeySignature &&
+            el is! TempoMark) {
+          if (x < headerEndX) headerEndX = x;
         }
       }
 
-      final usedWidth = maxX - minX;
-      final extraSpace = usableWidth - usedWidth;
+      if (!headerEndX.isFinite) headerEndX = minX;
 
-      // Se há espaço extra, distribuir proporcionalmente
-      if (extraSpace > 0 && measures.length > 1) {
-        // Ajustar posições dos elementos após cada compasso
+      final usedMusicWidth = maxX - headerEndX;
+      // When justifyAllSystems, fill to the full availableWidth (no right margin)
+      // so the final barline sits at the right content edge.
+      // Otherwise, use the standard usable width (left+right system margins).
+      final rightBoundary = justifyAllSystems
+          ? availableWidth
+          : (availableWidth - systemMargin * staffSpace);
+      final availableMusicWidth = rightBoundary - headerEndX;
+      final extraSpace = availableMusicWidth - usedMusicWidth;
+
+      // Expand musical content when there is extra space.
+      // Single-measure systems are stretched when justifyAllSystems is set.
+      if (extraSpace > 0 && (measures.length > 1 || justifyAllSystems)) {
         for (int i = 0; i < elements.length; i++) {
           final positioned = elements[i];
           if (positioned.system != system) continue;
 
-          // Calcular proporção de posição no sistema (simplificado)
-          final positionRatio = (maxX - minX) > 0
-              ? (positioned.position.dx - minX) / (maxX - minX)
-              : 0.0;
+          // Keep header elements at their original positions.
+          final el = positioned.element;
+          if (el is Clef || el is TimeSignature || el is KeySignature ||
+              el is TempoMark) continue;
+          if (positioned.position.dx < headerEndX) continue;
 
-          // Aplicar offset proporcional baseado na posição
+          final positionRatio = usedMusicWidth > 0
+              ? (positioned.position.dx - headerEndX) / usedMusicWidth
+              : 0.0;
           final offset = extraSpace * positionRatio;
           elements[i] = PositionedElement(
             positioned.element,
@@ -765,7 +794,8 @@ class LayoutEngine {
         default:
           clefWidth = cClefWidth;
       }
-      return (clefWidth + 0.5) * staffSpace;
+      // SMuFL guideline: ~1 staff space between clef glyph and the next element.
+      return (clefWidth + 1.0) * staffSpace;
     }
 
     if (element is KeySignature) {
