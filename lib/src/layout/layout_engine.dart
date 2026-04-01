@@ -471,13 +471,19 @@ class LayoutEngine {
     List<PositionedElement> elements,
     Map<int, List<int>> systemMeasures,
   ) {
+    if (systemMeasures.isEmpty) return;
+
     final usableWidth = availableWidth - (systemMargin * staffSpace * 2);
+    // Never justify the last system — standard engraving practice.
+    // Only full intermediate systems (those that break to the next line) are stretched.
+    final lastSystem = systemMeasures.keys.reduce((a, b) => a > b ? a : b);
 
     for (final entry in systemMeasures.entries) {
       final system = entry.key;
       final measures = entry.value;
 
       if (measures.isEmpty) continue;
+      if (system == lastSystem) continue;
 
       // Encontrar X mínimo e máximo dos elementos neste sistema
       double minX = double.infinity;
