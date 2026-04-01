@@ -410,10 +410,75 @@ class LayoutEngine {
       }
     }
 
+    // CENTRAR ELEMENTO ÚNICO: Um único elemento musical num compasso deve ser centrado.
+    _centerSingleElements(positionedElements);
+
     // ANÁLISE DE BEAMING AVANÇADO: Criar AdvancedBeamGroups
     _analyzeBeamGroups(currentTimeSignature, positionedElements);
 
     return positionedElements;
+  }
+
+  /// Centers a measure's sole musical element horizontally within the measure.
+  ///
+  /// Standard music engraving: when a measure contains only one note, chord,
+  /// or rest, that element must be centered between the flanking barlines.
+  /// This is called after [_justifyHorizontally] so barline positions are final.
+  void _centerSingleElements(List<PositionedElement> elements) {
+    int maxSys = 0;
+    for (final e in elements) {
+      if (e.system > maxSys) maxSys = e.system;
+    }
+
+    for (int sys = 0; sys <= maxSys; sys++) {
+      // Left edge of the current measure's musical content.
+      double? segStartX;
+      // Index of the sole musical element found so far in this segment.
+      int? singleIdx;
+      // True once a second musical element has been seen in this segment.
+      bool hasMultiple = false;
+
+      void flush(double barlineX) {
+        if (singleIdx != null && !hasMultiple && segStartX != null) {
+          final pe = elements[singleIdx!];
+          final ew = _getElementWidthSimple(pe.element);
+          final centeredX = segStartX! + (barlineX - segStartX! - ew) / 2;
+          elements[singleIdx!] = PositionedElement(
+            pe.element,
+            Offset(centeredX, pe.position.dy),
+            system: pe.system,
+          );
+        }
+        singleIdx = null;
+        hasMultiple = false;
+      }
+
+      for (int i = 0; i < elements.length; i++) {
+        final pe = elements[i];
+        if (pe.system != sys) continue;
+        final el = pe.element;
+
+        // Header elements do not belong to a measure's musical content.
+        if (el is Clef || el is TimeSignature || el is KeySignature ||
+            el is TempoMark) continue;
+
+        if (el is Barline) {
+          flush(pe.position.dx);
+          // Next segment starts after the barline separation gap.
+          segStartX = pe.position.dx + barlineSeparation * staffSpace;
+        } else if (el is Note || el is Rest || el is Chord) {
+          // First musical element in this segment establishes its left edge.
+          segStartX ??= pe.position.dx;
+
+          if (singleIdx == null && !hasMultiple) {
+            singleIdx = i;
+          } else {
+            hasMultiple = true;
+            singleIdx = null;
+          }
+        }
+      }
+    }
   }
 
   /// Analisa beam groups e cria AdvancedBeamGroups para renderização
