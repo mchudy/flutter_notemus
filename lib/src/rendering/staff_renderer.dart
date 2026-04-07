@@ -368,12 +368,13 @@ class StaffRenderer {
       final bounds = entry.value;
       final barlineType = lastBarlineType[systemNumber];
 
-      // Usar margem baseada no TIPO DE BARRA, não na posição do sistema
-      // Barra final (BarlineType.final_) usa finalBarlineMargin
-      // Outras barras usam systemEndMargin
+      // Staff lines must reach the last barline.  For non-final barlines the
+      // lines end exactly at bounds.endX (the barline position); for final
+      // barlines they extend slightly past to cover the thick line width.
       final isFinalBarline = (barlineType == BarlineType.final_);
-      final margin = isFinalBarline ? finalBarlineMargin : systemEndMargin;
-      final endX = bounds.endX + (coordinates.staffSpace + margin);
+      final endX = isFinalBarline
+          ? bounds.endX + (coordinates.staffSpace + finalBarlineMargin)
+          : bounds.endX;
 
       // Desenhar as 5 linhas do pentagrama para este sistema
       // ✅ CORREÇÃO: Usar coordinates.getStaffLineY() diretamente, que já tem
