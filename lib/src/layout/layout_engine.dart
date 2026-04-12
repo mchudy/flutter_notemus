@@ -215,6 +215,10 @@ class LayoutEngine {
   /// original positions; only musical content is stretched.
   final bool justifyAllSystems;
 
+  /// Vertical distance between systems, in staff-space units.
+  /// Defaults to 10.0 (the LayoutCursor default).
+  final double systemHeight;
+
   LayoutEngine(
     this.staff, {
     required this.availableWidth,
@@ -222,6 +226,7 @@ class LayoutEngine {
     this.metadata,
     this.verboseValidation = false, // Silencioso por padrão
     this.justifyAllSystems = false,
+    this.systemHeight = 10.0,
     spacing.SpacingPreferences? spacingPreferences,
   }) {
     // Inicializar motor de espaçamento
@@ -295,6 +300,7 @@ class LayoutEngine {
       staffSpace: staffSpace,
       availableWidth: availableWidth,
       systemMargin: systemMargin * staffSpace,
+      systemHeight: systemHeight,
       noteXPositions: _noteXPositions,
       noteStaffPositions: _noteStaffPositions,
       noteYPositions: _noteYPositions, // ✅ NOVO
