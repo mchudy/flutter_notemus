@@ -18,10 +18,16 @@ class PositionedElement {
   final MusicalElement element;
   final Offset position;
   final int system;
+
   /// Número da voz (1, 2, ...) em contextos polifônicos. Null = voz única.
   final int? voiceNumber;
 
-  PositionedElement(this.element, this.position, {this.system = 0, this.voiceNumber});
+  PositionedElement(
+    this.element,
+    this.position, {
+    this.system = 0,
+    this.voiceNumber,
+  });
 }
 
 class LayoutCursor {
@@ -111,7 +117,11 @@ class LayoutCursor {
     // Padding agora aplicado ANTES da barline no layout principal
   }
 
-  void addElement(MusicalElement element, List<PositionedElement> elements, {int? voiceNumber}) {
+  void addElement(
+    MusicalElement element,
+    List<PositionedElement> elements, {
+    int? voiceNumber,
+  }) {
     // Rastrear clave atual
     if (element is Clef) {
       _currentClef = element;
@@ -120,12 +130,14 @@ class LayoutCursor {
     // Keep Chord as a single element so ChordRenderer handles notehead
     // offsets and accidental collision avoidance as a unit.
     if (element is Chord && _currentClef != null) {
-      elements.add(PositionedElement(
-        element,
-        Offset(_currentX, _currentY),
-        system: _currentSystem,
-        voiceNumber: voiceNumber,
-      ));
+      elements.add(
+        PositionedElement(
+          element,
+          Offset(_currentX, _currentY),
+          system: _currentSystem,
+          voiceNumber: voiceNumber,
+        ),
+      );
       return;
     }
 
@@ -133,19 +145,28 @@ class LayoutCursor {
 
     if (element is Note && _currentClef != null) {
       noteXPositions?[element] = _currentX;
-      final staffPosition = StaffPositionCalculator.calculate(element.pitch, _currentClef!);
+      final staffPosition = StaffPositionCalculator.calculate(
+        element.pitch,
+        _currentClef!,
+      );
       noteStaffPositions?[element] = staffPosition;
-      final noteY = StaffPositionCalculator.toPixelY(staffPosition, staffSpace, _currentY);
+      final noteY = StaffPositionCalculator.toPixelY(
+        staffPosition,
+        staffSpace,
+        _currentY,
+      );
       noteYPositions?[element] = noteY;
       elementY = noteY;
     }
 
-    elements.add(PositionedElement(
-      element,
-      Offset(_currentX, elementY),
-      system: _currentSystem,
-      voiceNumber: voiceNumber,
-    ));
+    elements.add(
+      PositionedElement(
+        element,
+        Offset(_currentX, elementY),
+        system: _currentSystem,
+        voiceNumber: voiceNumber,
+      ),
+    );
   }
 }
 
@@ -291,12 +312,14 @@ class LayoutEngine {
     // Contador de validação (apenas para estatísticas)
     int validMeasures = 0;
     int invalidMeasures = 0;
+    int measuresInCurrentSystem = 0;
 
     for (int i = 0; i < staff.measures.length; i++) {
       final measure = staff.measures[i];
       final isFirst = cursor.isFirstMeasureInSystem;
       final isLast = i == staff.measures.length - 1;
-      final isLastInSystem = (i + 1) % measuresPerSystem == 0 && !isLast;
+      final isLastInSystem =
+          measuresInCurrentSystem >= measuresPerSystem && !isLast;
 
       // HERANÇA DE TIME SIGNATURE: Procurar no compasso atual
       TimeSignature? measureTimeSignature;
@@ -336,6 +359,7 @@ class LayoutEngine {
       if (!isFirst &&
           (isLastInSystem || cursor.needsSystemBreak(measureWidth))) {
         cursor.startNewSystem();
+        measuresInCurrentSystem = 0;
       }
 
       // Guardar índice inicial do compasso para justificação
@@ -390,6 +414,7 @@ class LayoutEngine {
       }
 
       cursor.endMeasure();
+      measuresInCurrentSystem++;
     }
 
     // Relatório resumido (apenas se verbose)
@@ -459,8 +484,11 @@ class LayoutEngine {
         final el = pe.element;
 
         // Header elements do not belong to a measure's musical content.
-        if (el is Clef || el is TimeSignature || el is KeySignature ||
-            el is TempoMark) continue;
+        if (el is Clef ||
+            el is TimeSignature ||
+            el is KeySignature ||
+            el is TempoMark)
+          continue;
 
         if (el is Barline) {
           flush(pe.position.dx);
@@ -572,7 +600,9 @@ class LayoutEngine {
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         final el = positioned.element;
-        if (el is! Clef && el is! TimeSignature && el is! KeySignature &&
+        if (el is! Clef &&
+            el is! TimeSignature &&
+            el is! KeySignature &&
             el is! TempoMark) {
           if (x < headerEndX) headerEndX = x;
         }
@@ -599,8 +629,11 @@ class LayoutEngine {
 
           // Keep header elements at their original positions.
           final el = positioned.element;
-          if (el is Clef || el is TimeSignature || el is KeySignature ||
-              el is TempoMark) continue;
+          if (el is Clef ||
+              el is TimeSignature ||
+              el is KeySignature ||
+              el is TempoMark)
+            continue;
           if (positioned.position.dx < headerEndX) continue;
 
           final positionRatio = usedMusicWidth > 0
@@ -679,7 +712,8 @@ class LayoutEngine {
         return isFirstInSystem || !_isSystemElement(element);
       }).toList();
 
-      bool seenFirstMusicElement = !isLeadVoice; // voice 2+ already positioned past system elements
+      bool seenFirstMusicElement =
+          !isLeadVoice; // voice 2+ already positioned past system elements
 
       for (int i = 0; i < elementsToRender.length; i++) {
         final element = elementsToRender[i];
@@ -690,7 +724,9 @@ class LayoutEngine {
         }
 
         // Record where voice 1's first non-system element lands so other voices align
-        if (isLeadVoice && !seenFirstMusicElement && !_isSystemElement(element)) {
+        if (isLeadVoice &&
+            !seenFirstMusicElement &&
+            !_isSystemElement(element)) {
           seenFirstMusicElement = true;
           firstMusicX = cursor.currentX;
         }
@@ -699,7 +735,11 @@ class LayoutEngine {
         final elementX = cursor.currentX + voiceOffset;
         final savedX = cursor.currentX;
         cursor.setX(elementX);
-        cursor.addElement(element, positionedElements, voiceNumber: voice.number);
+        cursor.addElement(
+          element,
+          positionedElements,
+          voiceNumber: voice.number,
+        );
         cursor.setX(savedX);
 
         cursor.advance(_getElementWidthSimple(element));
@@ -721,7 +761,12 @@ class LayoutEngine {
   ) {
     // Handle MultiVoiceMeasure: layout each voice independently
     if (measure is MultiVoiceMeasure) {
-      _layoutMultiVoiceMeasure(measure, cursor, positionedElements, isFirstInSystem);
+      _layoutMultiVoiceMeasure(
+        measure,
+        cursor,
+        positionedElements,
+        isFirstInSystem,
+      );
       return;
     }
     // CORREÇÃO #9: Processar beaming considerando anacrusis
