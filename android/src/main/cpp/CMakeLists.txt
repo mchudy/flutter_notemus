@@ -9,6 +9,7 @@ add_library(
 
 target_compile_features(flutter_notemus_native PRIVATE cxx_std_17)
 target_compile_options(flutter_notemus_native PRIVATE -O3 -ffast-math)
+target_link_options(flutter_notemus_native PRIVATE "-Wl,-z,max-page-size=16384")
 
 find_library(log-lib log)
 
